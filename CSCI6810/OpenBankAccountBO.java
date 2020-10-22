@@ -9,6 +9,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.*;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 class OpenBankAccountPanel extends JPanel implements ActionListener {
     private JButton OpenButton;
@@ -23,13 +26,14 @@ class OpenBankAccountPanel extends JPanel implements ActionListener {
         CheckingOrSavingsBox.addItem("Choose Account Type");
         CheckingOrSavingsBox.addItem("Checking");
         CheckingOrSavingsBox.addItem("Savings");
+        CheckingOrSavingsBox.setSelectedItem(1);
 
         UsernameField = new JTextField(15);
         UsernameField.setText(UName);
         NameField = new JTextField(CustomerName);
         AccountNumberField = new JTextField(15);
         BalanceField = new JTextField(15);
-        BalanceField.setText("0.0");
+        BalanceField.setText("7777");
 
 
         //JLabel TypeLabel = new JLabel("Choose Account Type: ");
@@ -78,7 +82,14 @@ class OpenBankAccountPanel extends JPanel implements ActionListener {
     {
         //Object source = evt.getSource(); //get who generates this event
         String arg = evt.getActionCommand();
+        Socket client = null;
+        InputStream sin = null;
+        OutputStream sout = null;
+
         if (arg.equals("Open")) { //determine which button is clicked
+            String header = "Open";
+            String host = "localhost";
+            int port = 2020;
             UName = UsernameField.getText(); //take actions
             Name = NameField.getText();
             AccountNumber = AccountNumberField.getText();
@@ -89,7 +100,50 @@ class OpenBankAccountPanel extends JPanel implements ActionListener {
             else if (AccountNumber.length() != 8)
                 JOptionPane.showMessageDialog(null, "Please Enter an Account Number with Exactly 8 Characters!", "Confirmation", JOptionPane.INFORMATION_MESSAGE);
             else {
-                    OpenBankAccountControl OBAcct_Ctrl = new OpenBankAccountControl(AccountType, AccountNumber, Name, UName, Balance);
+//                    OpenBankAccountControl OBAcct_Ctrl = new OpenBankAccountControl(AccountType, AccountNumber, Name, UName, Balance);
+                try {
+                    client = new Socket(host, port);
+                    sin = client.getInputStream();
+                    sout = client.getOutputStream();
+                } catch (IOException e) {
+                    System.out.println("Error in try catch for LoginBO");
+                    e.printStackTrace();
+                }
+                String s;
+                byte[] b = new byte[1024];
+                BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+                System.out.println("Connection Established!");
+                try {
+                    s = header;
+                    System.out.println("Client S: " + s);
+                    sout.write(s.getBytes());
+                    sout.flush();
+                    int j = sin.read(b);
+                    s = new String(b, 0, j);
+//                    s = new String(b, StandardCharsets.UTF_8);
+//                    s = s.replaceAll("\u0000.*", "");
+                    if(s.equals("Open Received")){
+                        s = AccountType + ";" + AccountNumber + ";" + Name + ";" + UName + ";" + Balance;
+                        sout.write(s.getBytes());
+                        sout.flush();
+                    }
+
+                    int i = sin.read(b);
+                    System.out.println("Got message!");
+                    System.out.write(b, 0, i);
+                    System.out.println();
+                    s = new String(b, 0, i);
+//                    s = new String(b, StandardCharsets.UTF_8);
+//                    s = s.replaceAll("\u0000.*", "");
+                    if (s.equals("Open Finished!")){
+                        System.out.println("Socket Closing!");
+                        client.close();
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
             }
 
             //Acct = new Account(UName, PsWord, PsWord1, Name);

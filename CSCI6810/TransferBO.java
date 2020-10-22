@@ -4,6 +4,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.*;
+import java.net.Socket;
 
 class TransferPanel extends JPanel implements ActionListener {
 
@@ -79,9 +81,14 @@ class TransferPanel extends JPanel implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         //Object source = evt.getSource(); //get who generates this event
         String arg = e.getActionCommand();
+        Socket client = null;
+        InputStream sin = null;
+        OutputStream sout = null;
+
         if (arg.equals("Transfer")) { //determine which button is clicked
-//            UName = UsernameField.getText(); //take actions
-//            Name = NameField.getText();
+            String header = "Transfer";
+            String host = "localhost";
+            int port = 2020;
             FromAccountNumber = (String) FromDropDownBox.getSelectedItem();
             ToAccountNumber = (String) ToDropDownBox.getSelectedItem();
             Transfer = BalanceField.getText();
@@ -98,8 +105,40 @@ class TransferPanel extends JPanel implements ActionListener {
                 String toAccnt = extractCheckingSavings((String) ToDropDownBox.getSelectedItem());
                 String chkAccntNbr = fromAccnt.equals("Checking") ? extractAccountNumber((String) FromDropDownBox.getSelectedItem()) : extractAccountNumber((String) ToDropDownBox.getSelectedItem());
                 String svgAccntNbr = fromAccnt.equals("Savings") ? extractAccountNumber((String) FromDropDownBox.getSelectedItem()) : extractAccountNumber((String) ToDropDownBox.getSelectedItem());
+                String s;
+                byte[] b = new byte[1024];
+                BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 
-                TransferControl transferControl = new TransferControl(fromAccnt, toAccnt, chkAccntNbr, svgAccntNbr, Float.parseFloat(Transfer));
+                try {
+                    client = new Socket(host, port);
+                    sin = client.getInputStream();
+                    sout = client.getOutputStream();
+                    System.out.println("Connection Established!");
+                    s = header;
+                    System.out.println("Client S: " + s);
+                    sout.write(s.getBytes());
+                    sout.flush();
+                    int j = sin.read(b);
+                    s = new String(b, 0, j);
+                    if (s.equals("Transfer Received")) {
+                        s = toAccnt + ";" + fromAccnt + ";" + chkAccntNbr + ";" + svgAccntNbr + ";" + Transfer;
+                        sout.write(s.getBytes());
+                        sout.flush();
+                    }
+
+                    int i = sin.read(b);
+                    System.out.println("Got message!");
+                    s = new String(b, 0, i);
+                    if (s.equals("Transfer Finished!")) {
+                        System.out.println("Transfer Socket Closing!");
+                        client.close();
+                    }
+                } catch (IOException k) {
+                    System.out.println("Error in try catch for TransferBO");
+                    k.printStackTrace();
+                }
+
+//                TransferControl transferControl = new TransferControl(fromAccnt, toAccnt, chkAccntNbr, svgAccntNbr, Float.parseFloat(Transfer));
             }
         }
 

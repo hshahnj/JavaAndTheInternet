@@ -9,15 +9,20 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.Socket;
 
 class AccountOverviewPanel extends JPanel implements ActionListener {
 
     private JTextField UsernameField, NameField, CheckingAccountBalanceField, SavingsAccountBalanceField;
+    private JButton ExitButton;
 
 
     private String UName, AccountNumber, Balance, Name, AccountType;
 
     public AccountOverviewPanel(String UName, String CustomerName, String chkAccountBalance, String svgsAccountBalance) {
+        ExitButton = new JButton("Exit"); //initializing two button references
 
         UsernameField = new JTextField(15);
         UsernameField.setText(UName);
@@ -29,6 +34,7 @@ class AccountOverviewPanel extends JPanel implements ActionListener {
         SavingsAccountBalanceField = new JTextField(15);
         SavingsAccountBalanceField.setText(svgsAccountBalance);
 
+        ExitButton.addActionListener(this); //event listener registration
 
         //JLabel TypeLabel = new JLabel("Choose Account Type: ");
         JLabel NameLabel = new JLabel("Customer Name:");
@@ -58,14 +64,49 @@ class AccountOverviewPanel extends JPanel implements ActionListener {
         TopPanel.add(UsernamePanel);
         CenterPanel.add(ChkAccntBalancePanel);
         CenterPanel.add(SvgsAccntBalancePanel);
+        JPanel BottomPanel = new JPanel();
 
         setLayout(new BorderLayout());
         add(TopPanel, BorderLayout.NORTH);
         add(CenterPanel, BorderLayout.CENTER);
+        BottomPanel.add(ExitButton);
+        add(BottomPanel, BorderLayout.SOUTH);//add the one button on to this panel
+
         //add(OpenButton, BorderLayout.SOUTH);//add the one button on to this panel
     }
 
     public void actionPerformed(ActionEvent evt) {
+        String arg = evt.getActionCommand();
+        Socket client = null;
+        InputStream sin = null;
+        OutputStream sout = null;
+        if (arg.equals("Exit")) { //determine which button is clicked
+            String header = "Exit";
+            String host = "localhost";
+            int port = 2020;
+            String s;
+            byte[] b = new byte[1024];
+
+            try {
+                client = new Socket(host, port);
+                sin = client.getInputStream();
+                sout = client.getOutputStream();
+                s = header;
+                sout.write(s.getBytes());
+                sout.flush();
+                int i = sin.read(b);
+                s = new String(b, 0, i);
+                if (s.equals("End Signal")){
+                    System.out.println("Main Thread Closing!");
+                    client.close();
+                    JComponent comp = (JComponent) evt.getSource();
+                    Window win = SwingUtilities.getWindowAncestor(comp);
+                    win.dispose();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
 

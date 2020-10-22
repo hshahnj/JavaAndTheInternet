@@ -4,6 +4,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.*;
+import java.net.Socket;
 
 class InquireTransactionsPanel extends JPanel implements ActionListener {
 
@@ -65,14 +67,56 @@ class InquireTransactionsPanel extends JPanel implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         //Object source = evt.getSource(); //get who generates this event
         String arg = e.getActionCommand();
-        if (arg.equals("Get Transaction")) { //determine which button is clicked
+        Socket client = null;
+        InputStream sin = null;
+        OutputStream sout = null;
+
+        if (arg.equals("Get Transaction")) {
+            String header = "Transactions";
+            String host = "localhost";
+            int port = 2020;
+
             Start_Date_Text = StartDate.getText(); //take actions
             End_Date_Text = EndDate.getText();
             CustomerID_Text = NameField.getText();
-            if(Start_Date_Text.length()!= 10 || End_Date_Text.length() != 10){
+            if (Start_Date_Text.length() != 10 || End_Date_Text.length() != 10) {
                 JOptionPane.showMessageDialog(null, "Please enter 10-digit Date!", "Confirmation", JOptionPane.INFORMATION_MESSAGE);
             } else {
-                InquireTransactionsControl control = new InquireTransactionsControl(CustomerID_Text, Start_Date_Text, End_Date_Text);
+
+                String s;
+                byte[] b = new byte[1024];
+                BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+
+                try {
+                    client = new Socket(host, port);
+                    sin = client.getInputStream();
+                    sout = client.getOutputStream();
+                    System.out.println("Connection Established!");
+                    s = header;
+                    System.out.println("Client S: " + s);
+                    sout.write(s.getBytes());
+                    sout.flush();
+                    int j = sin.read(b);
+                    s = new String(b, 0, j);
+                    if(s.equals("Transactions Received")){
+                        s = CustomerID_Text + ";" + Start_Date_Text + ";" + End_Date_Text;
+                        sout.write(s.getBytes());
+                        sout.flush();
+                    }
+
+                    int i = sin.read(b);
+                    System.out.println("Got message!");
+                    s = new String(b, 0, i);
+                    if (s.equals("Transactions Finished!")){
+                        System.out.println("Transactions Socket Closing!");
+                        client.close();
+                    }
+                } catch (IOException k) {
+                    System.out.println("Error in try catch for TransactionsBO");
+                    k.printStackTrace();
+                }
+
+//                InquireTransactionsControl control = new InquireTransactionsControl(CustomerID_Text, Start_Date_Text, End_Date_Text);
             }
         }
     }

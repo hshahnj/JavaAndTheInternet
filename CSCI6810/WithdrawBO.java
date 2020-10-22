@@ -4,6 +4,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.*;
+import java.net.Socket;
 
 class WithdrawPanel extends JPanel implements ActionListener {
 
@@ -82,9 +84,14 @@ class WithdrawPanel extends JPanel implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         //Object source = evt.getSource(); //get who generates this event
         String arg = e.getActionCommand();
+        Socket client = null;
+        InputStream sin = null;
+        OutputStream sout = null;
+
         if (arg.equals("Withdraw")) { //determine which button is clicked
-//            UName = UsernameField.getText(); //take actions
-//            Name = NameField.getText();
+            String header = "Withdraw";
+            String host = "localhost";
+            int port = 2020;
             FromAccountNumber = (String) FromDropDownBox.getSelectedItem();
             ToAccountNumber = (String) ToDropDownBox.getSelectedItem();
             Withdraw = BalanceField.getText();
@@ -99,7 +106,41 @@ class WithdrawPanel extends JPanel implements ActionListener {
                 JOptionPane.showMessageDialog(null, "Please enter External Account for To Account!", "Confirmation", JOptionPane.INFORMATION_MESSAGE);
             else {
                 //get checking or savings account
-                WithdrawControl withControl = new WithdrawControl(extractCheckingSavings((String) FromDropDownBox.getSelectedItem()), extractAccountNumber((String) FromDropDownBox.getSelectedItem()), Float.parseFloat(Withdraw));
+                String toAccountType = extractCheckingSavings((String) FromDropDownBox.getSelectedItem());
+                String accountNbr = extractAccountNumber((String) FromDropDownBox.getSelectedItem());
+                String withdraw = Withdraw;
+                String s;
+                byte[] b = new byte[1024];
+                BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+                try {
+                    client = new Socket(host, port);
+                    sin = client.getInputStream();
+                    sout = client.getOutputStream();
+                    System.out.println("Connection Established!");
+                    s = header;
+                    System.out.println("Client S: " + s);
+                    sout.write(s.getBytes());
+                    sout.flush();
+                    int j = sin.read(b);
+                    s = new String(b, 0, j);
+                    if(s.equals("Withdraw Received")){
+                        s = toAccountType + ";" + accountNbr + ";" + withdraw;
+                        sout.write(s.getBytes());
+                        sout.flush();
+                    }
+
+                    int i = sin.read(b);
+                    System.out.println("Got message!");
+                    s = new String(b, 0, i);
+                    if (s.equals("Withdraw Finished!")){
+                        System.out.println("Withdraw Socket Closing!");
+                        client.close();
+                    }
+                } catch (IOException k) {
+                    System.out.println("Error in try catch for WithdrawBO");
+                    k.printStackTrace();
+                }
+//                WithdrawControl withControl = new WithdrawControl(extractCheckingSavings((String) FromDropDownBox.getSelectedItem()), extractAccountNumber((String) FromDropDownBox.getSelectedItem()), Float.parseFloat(Withdraw));
             }
         }
 

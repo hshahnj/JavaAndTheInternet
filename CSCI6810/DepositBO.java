@@ -4,6 +4,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.*;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 class DepositPanel extends JPanel implements ActionListener {
 
@@ -75,9 +78,14 @@ class DepositPanel extends JPanel implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         //Object source = evt.getSource(); //get who generates this event
         String arg = e.getActionCommand();
+        Socket client = null;
+        InputStream sin = null;
+        OutputStream sout = null;
+
         if (arg.equals("Deposit")) { //determine which button is clicked
-//            UName = UsernameField.getText(); //take actions
-//            Name = NameField.getText();
+            String header = "Deposit";
+            String host = "localhost";
+            int port = 2020;
             FromAccountNumber = (String) FromDropDownBox.getSelectedItem();
             ToAccountNumber = (String) ToDropDownBox.getSelectedItem();
             Deposit = DepositField.getText();
@@ -91,8 +99,45 @@ class DepositPanel extends JPanel implements ActionListener {
             else if (!FromAccountNumber.equals("External"))
                 JOptionPane.showMessageDialog(null, "Please enter External Account for From Account!", "Confirmation", JOptionPane.INFORMATION_MESSAGE);
             else {
+
                 //get checking or savings account
-                DepositControl depControl = new DepositControl(extractCheckingSavings((String) ToDropDownBox.getSelectedItem()), extractAccountNumber((String) ToDropDownBox.getSelectedItem()), Float.parseFloat(Deposit));
+                String toAccountType = extractCheckingSavings((String) ToDropDownBox.getSelectedItem());
+                String accountNbr = extractAccountNumber((String) ToDropDownBox.getSelectedItem());
+                String deposit = Deposit;
+                String s;
+                byte[] b = new byte[1024];
+                BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+
+                try {
+                    client = new Socket(host, port);
+                    sin = client.getInputStream();
+                    sout = client.getOutputStream();
+                    System.out.println("Connection Established!");
+                    s = header;
+                    System.out.println("Client S: " + s);
+                    sout.write(s.getBytes());
+                    sout.flush();
+                    int j = sin.read(b);
+                    s = new String(b, 0, j);
+                    if(s.equals("Deposit Received")){
+                        s = toAccountType + ";" + accountNbr + ";" + deposit;
+                        sout.write(s.getBytes());
+                        sout.flush();
+                    }
+
+                    int i = sin.read(b);
+                    System.out.println("Got message!");
+                    s = new String(b, 0, i);
+                    if (s.equals("Deposit Finished!")){
+                        System.out.println("Deposit Socket Closing!");
+                        client.close();
+                    }
+                } catch (IOException k) {
+                    System.out.println("Error in try catch for DepositBO");
+                    k.printStackTrace();
+                }
+
+//                DepositControl depControl = new DepositControl(extractCheckingSavings((String) ToDropDownBox.getSelectedItem()), extractAccountNumber((String) ToDropDownBox.getSelectedItem()), Float.parseFloat(Deposit));
             }
 
 
